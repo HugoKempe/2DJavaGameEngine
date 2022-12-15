@@ -6,6 +6,7 @@ import com.hugo.engine.Renderer;
 import com.hugo.engine.audio.SoundClip;
 import com.hugo.engine.gfx.Image;
 import com.hugo.engine.gfx.ImageTile;
+import com.hugo.engine.gfx.Light;
 
 import java.awt.event.KeyEvent;
 
@@ -13,14 +14,19 @@ public class GameManager extends AbstractGame
 {
     private Image image;
     private ImageTile image2;
+    private Light light;
 
     private SoundClip clip;
 
     public GameManager()
     {
-        image = new Image("/GIMP/NoAlpha_1.png");
-        image2 = new ImageTile("/GIMP/NoAlpha_2.png", 16, 16);
+        image = new Image("/test3.png");
+        image.setLightBlock(Light.FULL);
+        image.setAlpha(true);
+        image2 = new ImageTile("/bg.png", 16, 16);
         image2.setAlpha(true);
+
+        light = new Light(100, 0xff00ffff);
 
         clip = new SoundClip("/audio/test.wav");
         clip.setVolume(-20);
@@ -47,11 +53,15 @@ public class GameManager extends AbstractGame
     @Override
     public void render(GameContainer gc, Renderer r)
     {
+
         //r.drawImageTile(image, gc.getInput().getMouseX() - 8, gc.getInput().getMouseY() - 8, (int)temp, 0);
-        r.setzDepth(1);
-        r.drawImageTile(image2, gc.getInput().getMouseX(), gc.getInput().getMouseY(), 1, 1);
         r.setzDepth(0);
-        r.drawImage(image, 10, 10);
+        r.drawImage(image2, 0, 0);
+        r.drawImage(image, 100, 100);
+
+        r.drawLight(light, gc.getInput().getMouseX(), gc.getInput().getMouseY());
+        //r.setzDepth(0);
+        //r.drawImage(image, 10, 10);
         //r.drawFillRect(gc.getInput().getMouseX() - 200, gc.getInput().getMouseY() - 200, 400, 400, 0xffffccff);
     }
 

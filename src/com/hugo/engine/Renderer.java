@@ -1,9 +1,6 @@
 package com.hugo.engine;
 
-import com.hugo.engine.gfx.Font;
-import com.hugo.engine.gfx.Image;
-import com.hugo.engine.gfx.ImageRequest;
-import com.hugo.engine.gfx.ImageTile;
+import com.hugo.engine.gfx.*;
 
 import java.awt.image.DataBufferInt;
 import java.util.ArrayList;
@@ -14,11 +11,15 @@ public class Renderer
 {
     private Font font = Font.STANDARD;
     private ArrayList<ImageRequest> imageRequests = new ArrayList<ImageRequest>();
+    private ArrayList<LightRequest> lightRequests = new ArrayList<LightRequest>();
 
     private int pW, pH;
     private int[] p;
     private int[] zb; // zBuffer
+    private int[] lm; // Light Map
+    private int[] lb; // Light Block
 
+    private int ambientColor= 0xff232323;
     private int zDepth = 0;
     private boolean processing = false;
 
@@ -29,6 +30,8 @@ public class Renderer
         pH = gc.getHeight();
         p = ((DataBufferInt) gc.getWindow().getImage().getRaster().getDataBuffer()).getData();
         zb = new int[p.length];
+        lm = new int[p.length];
+        lb = new int[p.length];
     }
 
     public void clear()
@@ -37,6 +40,8 @@ public class Renderer
         {
             p[i] = 0;
             zb[i] = 0;
+            lm[i] = ambientColor;
+            lb[i] = 0;
         }
     }
 
@@ -64,7 +69,24 @@ public class Renderer
             drawImage(ir.image, ir.offX, ir.offY);
         }
 
+        // Draw lighting
+        for (int i = 0; i < lightRequests.size(); i++)
+        {
+            LightRequest l = lightRequests.get(i);
+            drawLightRequest(l.light, l.locX, l.locY);
+        }
+
+        for (int i = 0; i < p.length; i++)
+        {
+            float r = ((lm[i] >> 16) & 0xff) / 255f;
+            float g = ((lm[i] >> 8) & 0xff) / 255f;
+            float b = (lm[i] & 0xff) / 255f;
+
+            p[i] = ((int) (((p[i] >> 16) & 0xff) * r) << 16 | (int) (((p[i] >> 8) & 0xff) * g) << 8 | (int) ((p[i] & 0xff) * b));
+        }
+
         imageRequests.clear();
+        lightRequests.clear();
         processing = false;
     }
 
@@ -96,8 +118,39 @@ public class Renderer
             int newGreen = ((pixelColor >> 8) & 0xff) - (int) ((((pixelColor >> 8) & 0xff) - ((value >> 8) & 0xff)) * (alpha / 255f));
             int newBlue = (pixelColor & 0xff) - (int) (((pixelColor & 0xff) - (value & 0xff)) * (alpha / 255f));
 
-            p[index] = (255 << 24 | newRed << 16 | newGreen << 8 | newBlue);
+            p[index] = (newRed << 16 | newGreen << 8 | newBlue);
         }
+    }
+
+    public void setLightMap(int x, int y, int value)
+    {
+        if (x < 0 || x >= pW || y < 0 || y >= pH)
+        {
+            return;
+        }
+
+        int baseColor = lm[x + y * pW];
+
+        int maxRed   = Math.max((baseColor >> 16) & 0xff, (value >> 16) & 0xff);
+        int maxGreen = Math.max((baseColor >> 8) & 0xff, (value >> 8) & 0xff);
+        int maxBlue  = Math.max(baseColor & 0xff, value & 0xff);
+
+        lm[x + y * pW] = (maxRed << 16 | maxGreen << 8 | maxBlue);
+    }
+
+    public void setLightBlock(int x, int y, int value)
+    {
+        if (x < 0 || x >= pW || y < 0 || y >= pH)
+        {
+            return;
+        }
+
+        if (zb[x + y * pW] > zDepth)
+            return;
+
+        int baseColor = lm[x + y * pW];
+
+        lb[x + y * pW] = value;
     }
 
     public void drawText(String text, int offX, int offY, int color)
@@ -154,6 +207,7 @@ public class Renderer
             for (int x = newX; x < newWidth; x++)
             {
                 setPixel(x + offX, y + offY, image.getP()[x + y * image.getW()]);
+                setLightBlock(x + offX, y + offY, image.getLightBlock());
             }
         }
     }
@@ -188,6 +242,7 @@ public class Renderer
             for (int x = newX; x < newWidth; x++)
             {
                 setPixel(x + offX, y + offY, image.getP()[(x + tileX * image.getTileW()) + (y + tileY * image.getTileH()) * image.getW()]);
+                setLightBlock(x + offX, y + offY, image.getLightBlock());
             }
         }
     }
@@ -231,6 +286,69 @@ public class Renderer
             for (int x = newX; x < newWidth; x++)
             {
                 setPixel(x + offX, y + offY, color);
+            }
+        }
+    }
+
+    public void drawLight(Light l, int offX, int offY)
+    {
+        lightRequests.add(new LightRequest(l, offX, offY));
+    }
+
+    private void drawLightRequest(Light l, int offX, int offY)
+    {
+        for (int i = 0; i <= l.getDiameter(); i++)
+        {
+            drawLightLine(l, l.getRadius(), l.getRadius(), i, 0, offX, offY);
+            drawLightLine(l, l.getRadius(), l.getRadius(), i, l.getDiameter(), offX, offY);
+            drawLightLine(l, l.getRadius(), l.getRadius(), 0, i, offX, offY);
+            drawLightLine(l, l.getRadius(), l.getRadius(), l.getDiameter(), i, offX, offY);
+        }
+    }
+
+    private void drawLightLine(Light l, int x0, int y0, int x1, int y1, int offX, int offY)
+    {
+        int dx = Math.abs(x1 - x0);
+        int dy = Math.abs(y1 - y0);
+
+        int sx = x0 < x1 ? 1 : -1;
+        int sy = y0 < y1 ? 1 : -1;
+
+        int err = dx - dy;
+        int e2;
+
+        while (true)
+        {
+            int screenX = x0 - l.getRadius() + offX;
+            int screenY = y0 - l.getRadius() + offY;
+
+            if (screenX < 0 || screenX >= pW || screenY < 0 || screenY >= pH)
+                return;
+
+            int lightColor = l.getLightValue(x0, y0);
+            if (lightColor == 0)
+                return;
+
+            if (lb[screenX + screenY * pW] == Light.FULL)
+                return;
+
+            setLightMap(screenX, screenY, lightColor);
+
+            if (x0 == x1 && y0 == y1)
+                break;
+
+            e2 = 2 * err;
+
+            if (e2 > -1 * dy)
+            {
+                err -= dy;
+                x0 += sx;
+            }
+
+            if (e2 < dx)
+            {
+                err += dx;
+                y0 += sy;
             }
         }
     }
