@@ -11,12 +11,17 @@ import java.awt.event.KeyEvent;
 
 public class GameManager extends AbstractGame
 {
-    private ImageTile image;
+    private Image image;
+    private ImageTile image2;
+
     private SoundClip clip;
 
     public GameManager()
     {
-        image = new ImageTile("/test.png", 16, 16);
+        image = new Image("/GIMP/NoAlpha_1.png");
+        image2 = new ImageTile("/GIMP/NoAlpha_2.png", 16, 16);
+        image2.setAlpha(true);
+
         clip = new SoundClip("/audio/test.wav");
         clip.setVolume(-20);
     }
@@ -42,7 +47,11 @@ public class GameManager extends AbstractGame
     @Override
     public void render(GameContainer gc, Renderer r)
     {
-        r.drawImageTile(image, gc.getInput().getMouseX() - 8, gc.getInput().getMouseY() - 8, (int)temp, 0);
+        //r.drawImageTile(image, gc.getInput().getMouseX() - 8, gc.getInput().getMouseY() - 8, (int)temp, 0);
+        r.setzDepth(1);
+        r.drawImageTile(image2, gc.getInput().getMouseX(), gc.getInput().getMouseY(), 1, 1);
+        r.setzDepth(0);
+        r.drawImage(image, 10, 10);
         //r.drawFillRect(gc.getInput().getMouseX() - 200, gc.getInput().getMouseY() - 200, 400, 400, 0xffffccff);
     }
 

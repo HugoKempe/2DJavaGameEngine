@@ -8,6 +8,7 @@ public class Image
 {
     private int w, h;
     private int[] p;
+    private boolean alpha = false;
 
     public Image(String path)
     {
@@ -26,6 +27,13 @@ public class Image
         p = image.getRGB(0, 0, w, h, null, 0, w);
 
         image.flush();
+    }
+
+    public Image(int[] p, int w, int h)
+    {
+        this.p = p;
+        this.w = w;
+        this.h = h;
     }
 
     public int getW()
@@ -56,5 +64,15 @@ public class Image
     public void setP(int[] p)
     {
         this.p = p;
+    }
+
+    public boolean isAlpha()
+    {
+        return alpha;
+    }
+
+    public void setAlpha(boolean alpha)
+    {
+        this.alpha = alpha;
     }
 }
