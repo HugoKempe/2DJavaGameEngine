@@ -26,7 +26,7 @@ public class GameManager extends AbstractGame
         image2 = new ImageTile("/bg.png", 16, 16);
         image2.setAlpha(true);
 
-        light = new Light(100, 0xff00ffff);
+        light = new Light(100, 0xff00ff00); // Hello
 
         clip = new SoundClip("/audio/test.wav");
         clip.setVolume(-20);
