@@ -53,9 +53,11 @@ public class GameContainer implements Runnable
         int frames = 0;
         int fps = 0;
 
+        game.init(this);
+
         while (running)
         {
-            render = true;
+            render = false; // set render = true to uncap frame rate
             firstTime = System.nanoTime() / 1000000000.0;
             passedTime = firstTime - lastTime;
             lastTime = firstTime;
@@ -156,5 +158,10 @@ public class GameContainer implements Runnable
     public Input getInput()
     {
         return input;
+    }
+
+    public Renderer getRenderer()
+    {
+        return renderer;
     }
 }

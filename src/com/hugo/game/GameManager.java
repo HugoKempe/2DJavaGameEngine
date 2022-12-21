@@ -9,65 +9,94 @@ import com.hugo.engine.gfx.ImageTile;
 import com.hugo.engine.gfx.Light;
 
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
 
 public class GameManager extends AbstractGame
 {
-    private Image image;
-    private ImageTile image2;
-    private Light light;
-
-    private SoundClip clip;
+    private int[] collision;
+    private int levelW, levelH;
+    private ArrayList<GameObject> objects = new ArrayList<>();
 
     public GameManager()
     {
-        image = new Image("/test3.png");
-        image.setLightBlock(Light.FULL);
-        image.setAlpha(true);
-        image2 = new ImageTile("/bg.png", 16, 16);
-        image2.setAlpha(true);
+        objects.add(new Player(2, 2));
+        loadLevel("/level.png");
+    }
 
-        light = new Light(100, 0xff00ffff);
-
-        clip = new SoundClip("/audio/test.wav");
-        clip.setVolume(-20);
+    @Override
+    public void init(GameContainer gc)
+    {
+        gc.getRenderer().setAmbientColor(-1);
     }
 
     @Override
     public void update(GameContainer gc, float dt)
     {
-        if (gc.getInput().isKeyDown(KeyEvent.VK_A))
+        for (int i = 0; i < objects.size(); i++)
         {
-            clip.play();
-        }
-
-        temp += dt * 10;
-
-        if (temp > 3)
-        {
-            temp = 0;
+            objects.get(i).update(gc, dt);
+            if (objects.get(i).isDead())
+            {
+                objects.remove(i);
+                i--;
+            }
         }
     }
-
-    float temp = 0;
 
     @Override
     public void render(GameContainer gc, Renderer r)
     {
+        for (int y = 0; y < levelH; y++)
+        {
+            for (int x = 0; x < levelW; x++)
+            {
+                if (collision[x + y * levelW] == 1)
+                {
+                    r.drawFillRect(x * 16, y * 16, 16, 16, 0xff0f0f0f);
+                }
+                else
+                {
+                    r.drawFillRect(x * 16, y * 16, 16, 16, 0xfff9f9f9);
+                }
+            }
+        }
 
-        //r.drawImageTile(image, gc.getInput().getMouseX() - 8, gc.getInput().getMouseY() - 8, (int)temp, 0);
-        r.setzDepth(0);
-        r.drawImage(image2, 0, 0);
-        r.drawImage(image, 100, 100);
+        for (GameObject object : objects)
+        {
+            object.render(gc, r);
+        }
+    }
 
-        r.drawLight(light, gc.getInput().getMouseX(), gc.getInput().getMouseY());
-        //r.setzDepth(0);
-        //r.drawImage(image, 10, 10);
-        //r.drawFillRect(gc.getInput().getMouseX() - 200, gc.getInput().getMouseY() - 200, 400, 400, 0xffffccff);
+    public void loadLevel(String path)
+    {
+        Image levelImage = new Image(path);
+
+        levelW = levelImage.getW();
+        levelH = levelImage.getH();
+        collision = new int[levelW * levelH];
+
+        for (int y = 0; y < levelImage.getH(); y++)
+        {
+            for (int x = 0; x < levelImage.getW(); x++)
+            {
+                if (levelImage.getP()[x + y * levelImage.getW()] == 0xff000000)
+                {
+                    collision[x + y * levelImage.getW()] = 1;
+                }
+                else
+                {
+                    collision[x + y * levelImage.getW()] = 0;
+                }
+            }
+        }
     }
 
     public static void main(String[] args)
     {
         GameContainer gc = new GameContainer(new GameManager());
+        gc.setWidth(320);
+        gc.setHeight(240);
+        gc.setScale(3f);
         gc.start();
     }
 }
